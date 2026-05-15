@@ -1,8 +1,13 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+
+// 1. Importamos el filtro y los guards que creaste
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +18,19 @@ async function bootstrap(): Promise<void> {
   const port = config.get<number>('port', 3000);
 
   app.setGlobalPrefix(apiPrefix);
+
+  // =========================================================
+  // 2. CONECTAMOS LA SEGURIDAD Y EL MANEJO DE ERRORES GLOBAL
+  // =========================================================
+  
+  // Activa el formateo de errores que pide el profesor
+  app.useGlobalFilters(new HttpExceptionFilter());
+  
+  // Activa la lectura de tokens y roles en todos los endpoints
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(new JwtAuthGuard(reflector), new RolesGuard(reflector));
+  
+  // =========================================================
 
   app.useGlobalPipes(
     new ValidationPipe({
